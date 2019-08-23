@@ -20,7 +20,7 @@ OpenRefine Facets, Engine, and Facet Responses.
 
 import json
 import re
-
+from sys import version_info
 
 def to_camel(attr):
     """convert this_attr_name to thisAttrName."""
@@ -34,18 +34,31 @@ def from_camel(attr):
     # Don't add an underscore for capitalized first letter
     return re.sub(r'(?<=.)([A-Z])', lambda x: '_' + x.group(1), attr).lower()
 
+def get_stringtype():
+    if (version_info > (3, 0)):
+        return str
+    elif (version_info < (3, 0)):
+        return basestring
 
 class Facet(object):
     def __init__(self, column, facet_type, **options):
         self.type = facet_type
         self.name = column
         self.column_name = column
-        for k, v in options.items():
-            setattr(self, k, v)
+        if (version_info > (3, 0)):
+            for k, v in list(options.items()):
+                setattr(self, k, v)
+        elif (version_info < (3, 0)):
+            for k, v in options.items():
+                setattr(self, k, v)
 
     def as_dict(self):
-        return dict([(to_camel(k), v) for k, v in self.__dict__.items()
-                     if v is not None])
+        if (version_info > (3, 0)):
+            return dict([(to_camel(k), v) for k, v in list(self.__dict__.items())
+                      if v is not None])
+        elif (version_info < (3, 0)):
+            return dict([(to_camel(k), v) for k, v in self.__dict__.items()
+                        if v is not None])
 
 
 class TextFilterFacet(Facet):
@@ -159,8 +172,9 @@ class FacetResponse(object):
     """Class for unpacking an individual facet response."""
     def __init__(self, facet):
         self.name = None
+        
         for k, v in facet.items():
-            if isinstance(k, bool) or isinstance(k, basestring):
+            if isinstance(k, bool) or isinstance(k, get_stringtype()):
                 setattr(self, from_camel(k), v)
         self.choices = {}
 
@@ -268,7 +282,7 @@ class Sorting(object):
             criteria = [criteria]
         for criterion in criteria:
             # A string criterion defaults to a string sort on that column
-            if isinstance(criterion, basestring):
+            if isinstance(criterion, get_stringtype()):
                 criterion = {
                     'column': criterion,
                     'valueType': 'string',
