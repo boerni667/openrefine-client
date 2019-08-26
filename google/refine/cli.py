@@ -24,7 +24,15 @@ import os
 import ssl
 import sys
 import time
-import urllib
+from sys import version_info
+if (version_info > (3, 0)):
+    py3=True
+    from urllib.request import urlretrieve
+    
+elif (version_info < (3, 0)):
+    py3=False
+    from urllib import urlretrieve
+
 from xml.etree import ElementTree
 
 from google.refine import refine
@@ -35,11 +43,9 @@ def apply(project_id, history_file):
     project = refine.RefineProject(project_id)
     response = project.apply_operations(history_file)
     if response != 'ok':
-        raise Exception('Failed to apply %s to %s: %s' %
-                        (history_file, project_id, response))
+        raise Exception('Failed to apply {} to {}: {}'.format(history_file, project_id, response))
     else:
-        print('File %s has been successfully applied to project %s' %
-              (history_file, project_id))
+        print('File {} has been successfully applied to project {}'.format(history_file, project_id))
 
 
 def create(project_file,
@@ -113,7 +119,10 @@ def create(project_file,
             sheets = [0]
             # TODO: new format for sheets option introduced in OpenRefine 2.8
     # execute
-    kwargs = {k: v for k, v in vars().items() if v is not None}
+    if py3:
+        kwargs = {k: v for k, v in list(vars().items()) if v is not None}
+    else:
+        kwargs = {k: v for k, v in vars().items() if v is not None}
     project = refine.Refine(refine.RefineServer()).new_project(
         guess_cell_value_types=guessCellValueTypes,
         ignore_lines=ignoreLines,
@@ -141,10 +150,9 @@ def delete(project_id):
     project = refine.RefineProject(project_id)
     response = project.delete()
     if response != True:
-        raise Exception('Failed to delete %s: %s' %
-                        (project_id, response))
+        raise Exception('Failed to delete {}: {}'.format(project_id, response))
     else:
-        print('Project %s has been successfully deleted' % project_id)
+        print('Project {} has been successfully deleted'.format(project_id))
 
 
 def download(url, output_file=None):
@@ -152,14 +160,17 @@ def download(url, output_file=None):
     if not output_file:
         output_file = os.path.basename(url)
     if os.path.exists(output_file):
-        print('Error: File %s already exists.\n'
+        print('Error: File {} already exists.\n'
               'Delete existing file or try command --output '
-              'to specify a different filename.' % output_file)
+              'to specify a different filename.'.format(output_file))
         return
-    # Workaround for SSL verification problems in one-file-executables
-    context = ssl._create_unverified_context()
-    urllib.urlretrieve(url, output_file, context=context)
-    print('Download to file %s complete' % output_file)
+    if py3:
+        urlretrieve(url, output_file)
+    else:
+        # Workaround for SSL verification problems in one-file-executables
+        context = ssl._create_unverified_context()
+        urlretrieve(url, output_file, context=context)
+    print('Download to file {} complete'.format(output_file))
 
 
 def export(project_id, encoding=None, output_file=None, export_format=None):
@@ -181,7 +192,7 @@ def export(project_id, encoding=None, output_file=None, export_format=None):
         with open(output_file, 'wb') as f:
             f.write(project.export(
                 export_format=export_format, encoding=encoding).read())
-        print('Export to file %s complete' % output_file)
+        print('Export to file {} complete'.format(output_file))
 
 
 def info(project_id):
@@ -193,21 +204,29 @@ def info(project_id):
                                     refine.REFINE_HOST + ':' +
                                     refine.REFINE_PORT +
                                     '/project?project=' + project_id))
-        for k, v in projects[project_id].items():
-            if v:
+        if py3:
+            for k, v in list(projects[project_id].items()):
+                if v:
+                    print(('{0:>20}: {1}'.format(k, v)))
+        else:
+            for k, v in projects[project_id].items():
+                if v:
                     print(u'{0:>20}: {1}'.format(k, v))
         project_model = refine.RefineProject(project_id).get_models()
         columns = [c['name'] for c in project_model['columnModel']['columns']]
         for (i, v) in enumerate(columns, start=1):
             print(u'{0:>20}: {1}'.format(u'column ' + str(i).zfill(3), v))
     else:
-        print('Error: No project found with id %s.\n'
-              'Check existing projects with command --list' % (project_id))
+        print('Error: No project found with id {}.\n'
+              'Check existing projects with command --list'.format(project_id))
 
 
 def ls():
     """Query the server and list projects sorted by mtime."""
-    projects = refine.Refine(refine.RefineServer()).list_projects().items()
+    if py3:
+        projects = list(refine.Refine(refine.RefineServer()).list_projects().items())
+    else:
+        projects = refine.Refine(refine.RefineServer()).list_projects().items()
 
     def date_to_epoch(json_dt):
         """Convert a JSON date time into seconds-since-epoch."""
@@ -271,7 +290,7 @@ def templating(project_id,
         else:
             with open(output_file, 'wb') as f:
                 f.write(project.export_templating(**templateconfig).read())
-            print('Export to file %s complete' % output_file)
+            print('Export to file {} complete'.format(output_file))
     else:
         # splitToFiles functionality
         prefix = templateconfig['prefix']
@@ -323,7 +342,7 @@ def templating(project_id,
                 output_file = base + '_' + ids[index] + '.' + ext
                 with open(output_file, 'wb') as f:
                     f.writelines([prefix, record, suffix])
-            print('Export to files complete. Last file: %s' % output_file)
+            print('Export to files complete. Last file: {}'.format(output_file))
         else:
             zeros = len(str(len(records)))
             for index, record in enumerate(records):
@@ -331,4 +350,4 @@ def templating(project_id,
                     str(index + 1).zfill(zeros) + '.' + ext
                 with open(output_file, 'wb') as f:
                     f.writelines([prefix, record, suffix])
-            print('Export to files complete. Last file: %s' % output_file)
+            print('Export to files complete. Last file: {}'.format(output_file))
