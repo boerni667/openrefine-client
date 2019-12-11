@@ -47,7 +47,7 @@ elif (version_info < (3, 0)):
     from urllib2 import Request
     from urllib2 import urlopen
     from urllib2 import HTTPError
-    from urllib2 import URLerror
+    from urllib2 import URLError
     import StringIO
     
 
@@ -100,7 +100,8 @@ class RefineServer(object):
         if data and py3:
             req.data=urlencode(data).encode('utf-8')
         elif data and not py3:
-            req.add_data(data)  # data = urllib.urlencode(data)
+            data = urlencode(data)
+            req.add_data(data) 
         #req.add_header('Accept-Encoding', 'gzip')
         try:
             response = urlopen(req)
@@ -415,7 +416,6 @@ class RefineProject:
         The cellIndex is an index for that column's data into the list returned
         from get_rows()."""
         response = self.do_json('get-models', include_engine=False)
-        print(json.dumps(response))
         column_model = response['columnModel']
         column_index = {}   # map of column name to index into get_rows() data
         self.columns = [column['name'] for column in column_model['columns']]
