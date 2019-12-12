@@ -84,7 +84,6 @@ class RefineServer(object):
         project_id: project ID as string
 
         Returns urllib2.urlopen iterable."""
-        
         if project_id:
             # XXX haven't figured out pattern on qs v body
             if 'delete' in command or data:
@@ -92,14 +91,16 @@ class RefineServer(object):
             else:
                 params['project'] = project_id
         if data and "project-file" in data:
-            response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,files=data['project-file'],data=data)
-        else:
+            response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,files=data.pop('project-file'),json=data)
+        elif data:
             response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,data=data)
+        else:
+            response=requests.get('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params)
         return response
 
     def urlopen_json(self, *args, **kwargs):
         """Open a Refine URL, optionally POST data, and return parsed JSON."""
-        response = json.loads(self.urlopen(*args, **kwargs).text)
+        response = self.urlopen(*args, **kwargs).json()
         if 'code' in response and response['code'] not in ('ok', 'pending'):
             error_message = ('server ' + response['code'] + ': ' +
                              response.get('message', response.get('stack', response)))
