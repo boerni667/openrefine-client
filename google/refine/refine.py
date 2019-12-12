@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Client library to communicate with a Refine server.
 """
@@ -25,6 +25,7 @@ import os
 import re
 import time
 from sys import version_info
+import requests
 if (version_info > (3, 0)):
     py3=True
     from io import StringIO
@@ -75,7 +76,7 @@ class RefineServer(object):
         self.server = server[:-1] if server.endswith('/') else server
         self.__version = None     # see version @property below
 
-    def urlopen(self, command, data=None, params=None, project_id=None):
+    def urlopen(self, command, data={}, params={}, project_id=None):
         """Open a Refine URL and with optional query params and POST data.
 
         data: POST data dict
@@ -83,44 +84,22 @@ class RefineServer(object):
         project_id: project ID as string
 
         Returns urllib2.urlopen iterable."""
-        url = self.server + '/command/core/' + command
-        if data is None:
-            data = {}
-        if params is None:
-            params = {}
+        
         if project_id:
             # XXX haven't figured out pattern on qs v body
             if 'delete' in command or data:
                 data['project'] = project_id
             else:
                 params['project'] = project_id
-        if params:
-            url += '?' + urlencode(params)
-        req = Request(url)
-        if data and py3:
-            req.data=urlencode(data).encode('utf-8')
-        elif data and not py3:
-            data = urlencode(data)
-            req.add_data(data) 
-        #req.add_header('Accept-Encoding', 'gzip')
-        try:
-            response = urlopen(req)
-        except HTTPError as e:
-            raise Exception('HTTP %d "%s" for %s\n\t%s' % (e.code, e.msg, e.geturl(), data))
-        except URLError as e:
-            raise URLError(
-                '%s for %s. No Refine server reachable/running; ENV set?' %
-                (e.reason, self.server))
-        if response.info().get('Content-Encoding', None) == 'gzip':
-            # Need a seekable filestream for gzip
-            gzip_fp = gzip.GzipFile(fileobj=StringIO.StringIO(response.read()))
-            # XXX Monkey patch response's filehandle. Better way?
-            addbase.__init__(response, gzip_fp)
+        if data and "project-file" in data:
+            response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,files=data['project-file'],data=data)
+        else:
+            response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,data=data)
         return response
 
     def urlopen_json(self, *args, **kwargs):
         """Open a Refine URL, optionally POST data, and return parsed JSON."""
-        response = json.loads(self.urlopen(*args, **kwargs).read())
+        response = json.loads(self.urlopen(*args, **kwargs).text)
         if 'code' in response and response['code'] not in ('ok', 'pending'):
             error_message = ('server ' + response['code'] + ': ' +
                              response.get('message', response.get('stack', response)))
@@ -280,9 +259,10 @@ class Refine:
             'include-file-sources': s(include_file_sources),
         }
 
-        if project_url is not None:
+        if project_url:
             options['url'] = project_url
-        elif project_file is not None:
+        elif project_file:
+            #options['project-file'] = open(project_file).read()
             options['project-file'] = {
                 'fd': open(project_file),
                 'filename': project_file,
@@ -295,9 +275,10 @@ class Refine:
         response = self.server.urlopen(
             'create-project-from-upload', options, params
         )
+        #print(response.read().decode('utf-8'))
         # expecting a redirect to the new project containing the id in the url
         url_params = parse_qs(
-            urlparse(response.geturl()).query)
+            urlparse(response.url).query)
         if 'project' in url_params:
             project_id = url_params['project'][0]
             return RefineProject(self.server, project_id)
