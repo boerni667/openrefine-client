@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 """
 Functions used by the command line interface (CLI)
 """
@@ -191,7 +191,6 @@ def info(project_id):
                                     refine.REFINE_HOST + ':' +
                                     refine.REFINE_PORT +
                                     '/project?project=' + project_id))
-        print("testing")
         for k, v in list(projects[project_id].items()):
             if v:
                 print(('{0:>20}: {1}'.format(k, v)))

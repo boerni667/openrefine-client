@@ -91,7 +91,13 @@ class RefineServer(object):
 
     def urlopen_json(self, *args, **kwargs):
         """Open a Refine URL, optionally POST data, and return parsed JSON."""
-        response = self.urlopen(*args, **kwargs).json()
+        response = self.urlopen(*args, **kwargs)
+        if response.ok:
+            response = response.json()
+        else:
+            print(response.text)
+            error_message = ('server')
+            raise Exception(error_message)
         if 'code' in response and response['code'] not in ('ok', 'pending'):
             error_message = ('server ' + response['code'] + ': ' +
                              response.get('message', response.get('stack', response)))
@@ -389,14 +395,14 @@ class RefineProject:
         The cellIndex is an index for that column's data into the list returned
         from get_rows()."""
         response = self.do_json('get-models', include_engine=False)
-        column_model = response['columnModel']
+        column_model = response.get('columnModel')
         column_index = {}   # map of column name to index into get_rows() data
         self.columns = [column['name'] for column in column_model['columns']]
-        for i, column in enumerate(column_model['columns']):
+        for i, column in enumerate(column_model.get('columns')):
             name = column['name']
             self.column_order[name] = i
-            column_index[name] = column['cellIndex']
-        self.key_column = column_model['keyColumnName']
+            column_index[name] = column.get('cellIndex')
+        self.key_column = column_model.get('keyColumnName')
         self.has_records = response['recordModel'].get('hasRecords', False)
         self.rows_response_factory = RowsResponseFactory(column_index)
         # TODO: implement rest
