@@ -28,28 +28,14 @@ from sys import version_info
 import requests
 if (version_info > (3, 0)):
     py3=True
-    from io import StringIO
-    from urllib.parse import urlencode
     from urllib.parse import parse_qs
     from urllib.parse import urlparse
     from urllib.parse import quote
-    from urllib.request import Request
-    from urllib.request import urlopen
-    from urllib.error import HTTPError
-    from urllib.error import URLError
-    from urllib.response import addbase
 elif (version_info < (3, 0)):
     py3=False
     from urlparse import parse_qs
     from urlparse import urlparse
-    from urllib import urlencode
     from urllib import quote
-    from urllib import addbase
-    from urllib2 import Request
-    from urllib2 import urlopen
-    from urllib2 import HTTPError
-    from urllib2 import URLError
-    import StringIO
     
 
 from google.refine import facet
@@ -84,6 +70,11 @@ class RefineServer(object):
         project_id: project ID as string
 
         Returns urllib2.urlopen iterable."""
+        if not data:
+            data={}
+        if not params:
+            params={}
+        
         if project_id:
             # XXX haven't figured out pattern on qs v body
             if 'delete' in command or data:

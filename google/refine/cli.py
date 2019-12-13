@@ -24,14 +24,8 @@ import os
 import ssl
 import sys
 import time
+import requests
 from sys import version_info
-if (version_info > (3, 0)):
-    py3=True
-    from urllib.request import urlretrieve
-    
-elif (version_info < (3, 0)):
-    py3=False
-    from urllib import urlretrieve
 
 from xml.etree import ElementTree
 
@@ -119,10 +113,7 @@ def create(project_file,
             sheets = [0]
             # TODO: new format for sheets option introduced in OpenRefine 2.8
     # execute
-    if py3:
-        kwargs = {k: v for k, v in list(vars().items()) if v is not None}
-    else:
-        kwargs = {k: v for k, v in vars().items() if v is not None}
+    kwargs = {k: v for k, v in list(vars().items()) if v is not None}
     project = refine.Refine(refine.RefineServer()).new_project(
         guess_cell_value_types=guessCellValueTypes,
         ignore_lines=ignoreLines,
@@ -164,12 +155,8 @@ def download(url, output_file=None):
               'Delete existing file or try command --output '
               'to specify a different filename.'.format(output_file))
         return
-    if py3:
-        urlretrieve(url, output_file)
-    else:
-        # Workaround for SSL verification problems in one-file-executables
-        context = ssl._create_unverified_context()
-        urlretrieve(url, output_file, context=context)
+    with open(output_file,"wb") as f:
+        f.write(requests.get(url).content)
     print('Download to file {} complete'.format(output_file))
 
 
@@ -182,7 +169,7 @@ def export(project_id, encoding=None, output_file=None, export_format=None):
         if export_format in ['csv', 'tsv', 'txt']:
                 encoding = 'UTF-8'
         sys.stdout.write(project.export(
-            export_format=export_format, encoding=encoding).read())
+            export_format=export_format, encoding=encoding).text)
     else:
         ext = os.path.splitext(output_file)[1][1:]
         if ext:
@@ -191,7 +178,7 @@ def export(project_id, encoding=None, output_file=None, export_format=None):
             encoding = 'UTF-8'
         with open(output_file, 'wb') as f:
             f.write(project.export(
-                export_format=export_format, encoding=encoding).read())
+                export_format=export_format, encoding=encoding).content)
         print('Export to file {} complete'.format(output_file))
 
 
@@ -204,14 +191,10 @@ def info(project_id):
                                     refine.REFINE_HOST + ':' +
                                     refine.REFINE_PORT +
                                     '/project?project=' + project_id))
-        if py3:
-            for k, v in list(projects[project_id].items()):
-                if v:
-                    print(('{0:>20}: {1}'.format(k, v)))
-        else:
-            for k, v in projects[project_id].items():
-                if v:
-                    print(u'{0:>20}: {1}'.format(k, v))
+        print("testing")
+        for k, v in list(projects[project_id].items()):
+            if v:
+                print(('{0:>20}: {1}'.format(k, v)))
         project_model = refine.RefineProject(project_id).get_models()
         columns = [c['name'] for c in project_model['columnModel']['columns']]
         for (i, v) in enumerate(columns, start=1):
@@ -223,11 +206,7 @@ def info(project_id):
 
 def ls():
     """Query the server and list projects sorted by mtime."""
-    if py3:
-        projects = list(refine.Refine(refine.RefineServer()).list_projects().items())
-    else:
-        projects = refine.Refine(refine.RefineServer()).list_projects().items()
-
+    projects = list(refine.Refine(refine.RefineServer()).list_projects().items())
     def date_to_epoch(json_dt):
         """Convert a JSON date time into seconds-since-epoch."""
         return time.mktime(time.strptime(json_dt, '%Y-%m-%dT%H:%M:%SZ'))
@@ -286,10 +265,10 @@ def templating(project_id,
         # normal output
         if not output_file:
             sys.stdout.write(project.export_templating(
-                             **templateconfig).read())
+                             **templateconfig).text)
         else:
             with open(output_file, 'wb') as f:
-                f.write(project.export_templating(**templateconfig).read())
+                f.write(project.export_templating(**templateconfig).text)
             print('Export to file {} complete'.format(output_file))
     else:
         # splitToFiles functionality
@@ -335,7 +314,7 @@ def templating(project_id,
                                    'rowSeparator': ''})
         # execute
         records = project.export_templating(
-            **templateconfig).read().split(split)
+            **templateconfig).text.split(split)
         del records[0]  # skip first blank entry
         if suffixById:
             for index, record in enumerate(records):
