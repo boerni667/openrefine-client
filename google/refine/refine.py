@@ -81,8 +81,11 @@ class RefineServer(object):
                 data['project'] = project_id
             else:
                 params['project'] = project_id
+        print(data)
         if data and "project-file" in data:
-            response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,files=data.pop('project-file'),json=data)
+            _file=data.pop('project-file')
+            response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,files=_file,json=data)
+            _file["fd"].close()
         elif data:
             response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,data=data)
         else:
@@ -260,7 +263,6 @@ class Refine:
         if project_url:
             options['url'] = project_url
         elif project_file:
-            #options['project-file'] = open(project_file).read()
             options['project-file'] = {
                 'fd': open(project_file),
                 'filename': project_file,
