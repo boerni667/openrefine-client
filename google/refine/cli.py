@@ -209,8 +209,8 @@ def ls():
     def date_to_epoch(json_dt):
         """Convert a JSON date time into seconds-since-epoch."""
         return time.mktime(time.strptime(json_dt, '%Y-%m-%dT%H:%M:%SZ'))
-    projects.sort(key=lambda v: date_to_epoch(v[1]['modified']), reverse=True)
     if projects:
+        projects.sort(key=lambda v: date_to_epoch(v[1]['modified']), reverse=True)
         for project_id, project_info in projects:
             print(u'{0:>14}: {1}'.format(project_id, project_info['name']))
     else:
