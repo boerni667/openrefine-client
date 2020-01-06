@@ -81,7 +81,6 @@ class RefineServer(object):
                 data['project'] = project_id
             else:
                 params['project'] = project_id
-        print(data)
         if data and "project-file" in data:
             _file=data.pop('project-file')
             response=requests.post('{server}/command/core/{cmd}'.format(server=self.server,cmd=command),params=params,files=_file,json=data)
